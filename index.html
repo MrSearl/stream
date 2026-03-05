@@ -11,11 +11,11 @@
 <style>
 
 body{
-  font-family:Arial;
+  font-family: Arial;
   text-align:center;
-  padding:40px;
   max-width:700px;
   margin:auto;
+  padding:40px;
 }
 
 button{
@@ -24,19 +24,17 @@ button{
   margin:10px;
 }
 
-#status{
-  margin-top:20px;
-  font-size:16px;
-  color:#555;
-}
-
 audio{
   width:100%;
   margin-top:20px;
 }
 
-</style>
+#status{
+  margin-top:20px;
+  color:#555;
+}
 
+</style>
 </head>
 
 <body>
@@ -53,17 +51,18 @@ audio{
 <script>
 
 const params = new URLSearchParams(location.search);
-
-const peerId = params.get("listen") || "music";
+const streamId = params.get("listen") || "music";
 
 let peer;
+let localStream;
 
-const status = document.getElementById("status");
 const audio = document.getElementById("audio");
+const status = document.getElementById("status");
 
 function log(msg){
   status.innerHTML = msg;
 }
+
 
 // BROADCAST
 
@@ -71,18 +70,21 @@ document.getElementById("broadcast").onclick = async ()=>{
 
   log("Starting broadcast...");
 
-  peer = new Peer(peerId);
-
-  const stream = await navigator.mediaDevices.getDisplayMedia({
+  localStream = await navigator.mediaDevices.getDisplayMedia({
     video:true,
     audio:true
   });
 
-  peer.on("call", call=>{
-    call.answer(stream);
+  peer = new Peer(streamId);
+
+  peer.on("open", id=>{
+    log("Broadcast ready. Listeners can connect.");
   });
 
-  log("Broadcasting.<br>Listeners open:<br><b>?listen="+peerId+"</b>");
+  peer.on("call", call=>{
+    call.answer(localStream);
+  });
+
 };
 
 
@@ -96,11 +98,11 @@ document.getElementById("listen").onclick = ()=>{
 
   peer.on("open", id=>{
 
-    const call = peer.call(peerId, new MediaStream());
+    const call = peer.call(streamId, null);
 
     call.on("stream", remoteStream=>{
       audio.srcObject = remoteStream;
-      log("Connected to broadcast");
+      log("Audio connected");
     });
 
   });
