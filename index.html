@@ -4,38 +4,37 @@
 <meta charset="UTF-8">
 <title>Chrome Audio Stream</title>
 
-<style>
-body{
-  font-family: Arial, sans-serif;
-  max-width: 700px;
-  margin: auto;
-  padding: 20px;
-}
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-textarea{
-  width:100%;
-  height:120px;
-  margin:10px 0;
-  font-family: monospace;
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+
+body{
+  font-family:Arial;
+  text-align:center;
+  padding:40px;
+  max-width:700px;
+  margin:auto;
 }
 
 button{
-  padding:10px 16px;
-  margin:5px;
-  font-size:15px;
+  padding:14px 20px;
+  font-size:18px;
+  margin:10px;
 }
 
-.section{
-  border:1px solid #ccc;
-  padding:15px;
-  margin-bottom:20px;
-  border-radius:8px;
+#status{
+  margin-top:20px;
+  font-size:16px;
+  color:#555;
 }
 
 audio{
   width:100%;
-  margin-top:10px;
+  margin-top:20px;
 }
+
 </style>
 
 </head>
@@ -44,113 +43,67 @@ audio{
 
 <h2>Chrome Audio Stream</h2>
 
-<div class="section">
+<button id="broadcast">Start Broadcasting</button>
+<button id="listen">Start Listening</button>
 
-<h3>Sender (computer playing audio)</h3>
-
-<button id="startSend">Start Sender</button>
-<button id="createOffer">Create Offer</button>
-
-<p>Copy this offer to the receiver:</p>
-
-<textarea id="offerBox"></textarea>
-
-</div>
-
-<div class="section">
-
-<h3>Receiver (computer listening)</h3>
-
-<button id="startReceive">Start Listener</button>
-<button id="createAnswer">Create Answer</button>
-
-<p>Paste offer here first:</p>
-
-<textarea id="answerBox"></textarea>
-
-<p>Send this answer back to sender:</p>
-
-<textarea id="answerOutput"></textarea>
-
-<button id="connect">Connect Sender</button>
-
-</div>
-
-<h3>Audio Output</h3>
+<div id="status"></div>
 
 <audio id="audio" autoplay controls></audio>
 
 <script>
 
-let pc = new RTCPeerConnection();
-let localStream;
+const params = new URLSearchParams(location.search);
 
-const offerBox = document.getElementById("offerBox");
-const answerBox = document.getElementById("answerBox");
-const answerOutput = document.getElementById("answerOutput");
+const peerId = params.get("listen") || "music";
+
+let peer;
+
+const status = document.getElementById("status");
 const audio = document.getElementById("audio");
 
+function log(msg){
+  status.innerHTML = msg;
+}
 
-// SENDER
+// BROADCAST
 
-document.getElementById("startSend").onclick = async ()=>{
+document.getElementById("broadcast").onclick = async ()=>{
 
-  localStream = await navigator.mediaDevices.getDisplayMedia({
-    video:false,
+  log("Starting broadcast...");
+
+  peer = new Peer(peerId);
+
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video:true,
     audio:true
   });
 
-  localStream.getTracks().forEach(track=>{
-    pc.addTrack(track,localStream);
+  peer.on("call", call=>{
+    call.answer(stream);
   });
 
+  log("Broadcasting.<br>Listeners open:<br><b>?listen="+peerId+"</b>");
 };
 
 
-document.getElementById("createOffer").onclick = async ()=>{
+// LISTENER
 
-  const offer = await pc.createOffer();
+document.getElementById("listen").onclick = ()=>{
 
-  await pc.setLocalDescription(offer);
+  log("Connecting to broadcast...");
 
-  offerBox.value = JSON.stringify(offer);
+  peer = new Peer();
 
-};
+  peer.on("open", id=>{
 
+    const call = peer.call(peerId, new MediaStream());
 
-// RECEIVER
+    call.on("stream", remoteStream=>{
+      audio.srcObject = remoteStream;
+      log("Connected to broadcast");
+    });
 
-document.getElementById("startReceive").onclick = ()=>{
-
-  pc.ontrack = e=>{
-    audio.srcObject = e.streams[0];
-  };
-
-};
-
-
-document.getElementById("createAnswer").onclick = async ()=>{
-
-  const offer = JSON.parse(answerBox.value);
-
-  await pc.setRemoteDescription(offer);
-
-  const answer = await pc.createAnswer();
-
-  await pc.setLocalDescription(answer);
-
-  answerOutput.value = JSON.stringify(answer);
-
-};
-
-
-// FINAL CONNECT
-
-document.getElementById("connect").onclick = async ()=>{
-
-  const answer = JSON.parse(answerOutput.value);
-
-  await pc.setRemoteDescription(answer);
+  });
 
 };
 
