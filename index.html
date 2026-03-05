@@ -11,7 +11,7 @@
 <style>
 
 body{
-  font-family: Arial;
+  font-family:Arial;
   text-align:center;
   max-width:700px;
   margin:auto;
@@ -24,14 +24,14 @@ button{
   margin:10px;
 }
 
-audio{
-  width:100%;
-  margin-top:20px;
-}
-
 #status{
   margin-top:20px;
   color:#555;
+}
+
+audio{
+  width:100%;
+  margin-top:20px;
 }
 
 </style>
@@ -41,8 +41,8 @@ audio{
 
 <h2>Chrome Audio Stream</h2>
 
-<button id="broadcast">Start Broadcasting</button>
-<button id="listen">Start Listening</button>
+<button id="broadcast">Broadcast Audio</button>
+<button id="listen">Listen</button>
 
 <div id="status"></div>
 
@@ -50,14 +50,13 @@ audio{
 
 <script>
 
-const params = new URLSearchParams(location.search);
-const streamId = params.get("listen") || "music";
+const STREAM_ID = "music";
 
 let peer;
 let localStream;
 
-const audio = document.getElementById("audio");
 const status = document.getElementById("status");
+const audio = document.getElementById("audio");
 
 function log(msg){
   status.innerHTML = msg;
@@ -68,24 +67,26 @@ function log(msg){
 
 document.getElementById("broadcast").onclick = async ()=>{
 
-  log("Starting broadcast...");
+  log("Preparing broadcast...");
 
   localStream = await navigator.mediaDevices.getDisplayMedia({
     video:true,
     audio:true
   });
 
-  peer = new Peer(streamId);
+  peer = new Peer(STREAM_ID);
 
-  peer.on("open", id=>{
-    log("Broadcast ready. Listeners can connect.");
+  peer.on("open", ()=>{
+    log("Broadcast live. Listeners can now connect.");
   });
 
   peer.on("call", call=>{
+    log("Listener connected");
     call.answer(localStream);
   });
 
 };
+
 
 
 // LISTENER
@@ -96,34 +97,23 @@ document.getElementById("listen").onclick = ()=>{
 
   peer = new Peer();
 
-  peer.on("open", id=>{
-    tryConnect();
+  peer.on("open", ()=>{
+
+    const call = peer.call(STREAM_ID, new MediaStream());
+
+    if(!call){
+      log("Broadcaster not ready yet");
+      return;
+    }
+
+    call.on("stream", stream=>{
+      audio.srcObject = stream;
+      log("Audio connected");
+    });
+
   });
 
 };
-
-
-function tryConnect(){
-
-  const call = peer.call(streamId, new MediaStream());
-
-  if(!call){
-    log("Waiting for broadcaster...");
-    setTimeout(tryConnect,2000);
-    return;
-  }
-
-  call.on("stream", remoteStream=>{
-    audio.srcObject = remoteStream;
-    log("Connected. Audio streaming.");
-  });
-
-  call.on("error", ()=>{
-    log("Retrying connection...");
-    setTimeout(tryConnect,2000);
-  });
-
-}
 
 </script>
 
