@@ -97,17 +97,33 @@ document.getElementById("listen").onclick = ()=>{
   peer = new Peer();
 
   peer.on("open", id=>{
-
-    const call = peer.call(streamId, null);
-
-    call.on("stream", remoteStream=>{
-      audio.srcObject = remoteStream;
-      log("Audio connected");
-    });
-
+    tryConnect();
   });
 
 };
+
+
+function tryConnect(){
+
+  const call = peer.call(streamId, new MediaStream());
+
+  if(!call){
+    log("Waiting for broadcaster...");
+    setTimeout(tryConnect,2000);
+    return;
+  }
+
+  call.on("stream", remoteStream=>{
+    audio.srcObject = remoteStream;
+    log("Connected. Audio streaming.");
+  });
+
+  call.on("error", ()=>{
+    log("Retrying connection...");
+    setTimeout(tryConnect,2000);
+  });
+
+}
 
 </script>
 
