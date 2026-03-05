@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chrome Audio Stream</title>
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  max-width: 700px;
+  margin: auto;
+  padding: 20px;
+}
+
+textarea{
+  width:100%;
+  height:120px;
+  margin:10px 0;
+  font-family: monospace;
+}
+
+button{
+  padding:10px 16px;
+  margin:5px;
+  font-size:15px;
+}
+
+.section{
+  border:1px solid #ccc;
+  padding:15px;
+  margin-bottom:20px;
+  border-radius:8px;
+}
+
+audio{
+  width:100%;
+  margin-top:10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<h2>Chrome Audio Stream</h2>
+
+<div class="section">
+
+<h3>Sender (computer playing audio)</h3>
+
+<button id="startSend">Start Sender</button>
+<button id="createOffer">Create Offer</button>
+
+<p>Copy this offer to the receiver:</p>
+
+<textarea id="offerBox"></textarea>
+
+</div>
+
+<div class="section">
+
+<h3>Receiver (computer listening)</h3>
+
+<button id="startReceive">Start Listener</button>
+<button id="createAnswer">Create Answer</button>
+
+<p>Paste offer here first:</p>
+
+<textarea id="answerBox"></textarea>
+
+<p>Send this answer back to sender:</p>
+
+<textarea id="answerOutput"></textarea>
+
+<button id="connect">Connect Sender</button>
+
+</div>
+
+<h3>Audio Output</h3>
+
+<audio id="audio" autoplay controls></audio>
+
+<script>
+
+let pc = new RTCPeerConnection();
+let localStream;
+
+const offerBox = document.getElementById("offerBox");
+const answerBox = document.getElementById("answerBox");
+const answerOutput = document.getElementById("answerOutput");
+const audio = document.getElementById("audio");
+
+
+// SENDER
+
+document.getElementById("startSend").onclick = async ()=>{
+
+  localStream = await navigator.mediaDevices.getDisplayMedia({
+    video:false,
+    audio:true
+  });
+
+  localStream.getTracks().forEach(track=>{
+    pc.addTrack(track,localStream);
+  });
+
+};
+
+
+document.getElementById("createOffer").onclick = async ()=>{
+
+  const offer = await pc.createOffer();
+
+  await pc.setLocalDescription(offer);
+
+  offerBox.value = JSON.stringify(offer);
+
+};
+
+
+// RECEIVER
+
+document.getElementById("startReceive").onclick = ()=>{
+
+  pc.ontrack = e=>{
+    audio.srcObject = e.streams[0];
+  };
+
+};
+
+
+document.getElementById("createAnswer").onclick = async ()=>{
+
+  const offer = JSON.parse(answerBox.value);
+
+  await pc.setRemoteDescription(offer);
+
+  const answer = await pc.createAnswer();
+
+  await pc.setLocalDescription(answer);
+
+  answerOutput.value = JSON.stringify(answer);
+
+};
+
+
+// FINAL CONNECT
+
+document.getElementById("connect").onclick = async ()=>{
+
+  const answer = JSON.parse(answerOutput.value);
+
+  await pc.setRemoteDescription(answer);
+
+};
+
+</script>
+
+</body>
+</html>
